@@ -42,6 +42,25 @@ export function record(category: TimeCategory, hours: number, note: string, date
   return { id: `time-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, category, hours: Math.max(0.5, Number(hours) || 0.5), note: note.trim() || '未命名投资', date };
 }
 
+export function applyRecordEdit(existing: InvestmentRecord, patch: { category: TimeCategory; hours: number; note: string; date: string }): InvestmentRecord {
+  return { ...existing, category: patch.category, hours: Math.max(0.5, Number(patch.hours) || 0.5), note: patch.note.trim() || '未命名投资', date: patch.date };
+}
+
+export function toDateInputValue(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+export function withLocalDate(iso: string, dateInput: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateInput);
+  const date = new Date(iso);
+  if (!match || Number.isNaN(date.getTime())) return iso;
+  date.setFullYear(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return date.toISOString();
+}
+
 export function sampleSnapshot() {
   const account: TimeAccount = { dailyHours: 8, weeklyHours: 56, updatedAt: new Date().toISOString() };
   const seed: Array<[TimeCategory, number, string]> = [
