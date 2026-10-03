@@ -42,6 +42,72 @@ export function record(category: TimeCategory, hours: number, note: string, date
   return { id: `time-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, category, hours: Math.max(0.5, Number(hours) || 0.5), note: note.trim() || '未命名投资', date };
 }
 
+export interface RecordPatch {
+  category: TimeCategory;
+  hours: number;
+  note: string;
+  date: string;
+}
+
+export function applyRecordEdit(target: InvestmentRecord, patch: RecordPatch): InvestmentRecord {
+  target.category = patch.category;
+  target.hours = Math.max(0.5, Number(patch.hours) || 0.5);
+  target.note = patch.note.trim() || '未命名投资';
+  const parsed = new Date(patch.date);
+  if (!Number.isNaN(parsed.getTime())) target.date = parsed.toISOString();
+  return target;
+}
+
+export interface WeekPeriod {
+  start: Date;
+  end: Date;
+  week: number;
+  year: number;
+}
+
+export function startOfWeek(date: Date): Date {
+  const result = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  result.setDate(result.getDate() - ((result.getDay() + 6) % 7));
+  return result;
+}
+
+function isoWeek(date: Date): { week: number; year: number } {
+  const thursday = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  thursday.setUTCDate(thursday.getUTCDate() - ((thursday.getUTCDay() + 6) % 7) + 3);
+  const firstThursday = new Date(Date.UTC(thursday.getUTCFullYear(), 0, 4));
+  firstThursday.setUTCDate(firstThursday.getUTCDate() - ((firstThursday.getUTCDay() + 6) % 7) + 3);
+  return { week: 1 + Math.round((thursday.getTime() - firstThursday.getTime()) / 604800000), year: thursday.getUTCFullYear() };
+}
+
+export function weekPeriodContaining(date: Date): WeekPeriod {
+  const start = startOfWeek(date);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 7);
+  end.setMilliseconds(-1);
+  return { start, end, ...isoWeek(start) };
+}
+
+export function weekPeriod(offset = 0, now = new Date()): WeekPeriod {
+  const base = new Date(now);
+  base.setDate(base.getDate() + offset * 7);
+  return weekPeriodContaining(base);
+}
+
+export function inPeriod(dateIso: string, period: WeekPeriod): boolean {
+  const time = new Date(dateIso).getTime();
+  return time >= period.start.getTime() && time <= period.end.getTime();
+}
+
+export function recordsInPeriod(records: InvestmentRecord[], period: WeekPeriod): InvestmentRecord[] {
+  return records.filter((item) => inPeriod(item.date, period));
+}
+
+export function toDateInputValue(value: string | Date): string {
+  const date = new Date(value);
+  const pad = (input: number) => String(input).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 export function sampleSnapshot() {
   const account: TimeAccount = { dailyHours: 8, weeklyHours: 56, updatedAt: new Date().toISOString() };
   const seed: Array<[TimeCategory, number, string]> = [
